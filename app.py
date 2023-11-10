@@ -1,57 +1,53 @@
+import uuid
 from flask import Flask, request
+from db import stores, items
 
 app = Flask(__name__)
 
-stores = [
-    {
-        "name": "My Store", "items": [
-            {
-                "name": "Chair",
-                "price": 49.99
-            }
-        ]
-    }
-]
-
 @app.get("/store")
 def get_stores():
-    return {"stores": stores}
+    return {"stores": list(stores.values())}, 200
+
+@app.get("/store/<string:store_id>")
+def get_store(store_id):
+    try:
+        return stores[store_id]
+    except KeyError:
+        error_message = { "statusCode": 404, "message": f"Store with store_id '{store_id}' not found"}
+        return error_message, 404  
+     
+@app.get("/item")
+def get_items():
+    return {"items": list(items.values())}, 200
+
+@app.get("/item/<string:item_id>")
+def get_item(item_id):
+    try:
+        return items[item_id]
+    except:
+        error_message = { "statusCode": 404, "message": f"Item with item_id '{item_id}' not found"}
+        return error_message, 404  
+
 
 @app.post("/store")
 def create_store():
-    request_data = request.get_json()
-    new_store = { "name": request_data["name"], "items": []}
-    stores.append(new_store)
-
-    return new_store, 201
-
-@app.post("/store/<string:name>/item")
-def create_item(name):
-    request_date = request.get_json()
-
-    for store in stores:
-        if store["name"] == name:
-            new_item = {"name": request_date["name"], "price": request_date["price"]}
-            store["items"].append(new_item)
-            return new_item, 201
-     
-        error_message = { "statusCode": 404, "message": "Store not found"}
-        return error_message, 404
-
-@app.get("/store/<string:name>")
-def get_store(name):
-    for store in stores:
-        if store["name"] == name:
-            return store
-        
-        error_message = { "statusCode": 404, "message": "Store not found"}
-        return error_message, 404
+    store_id = uuid.uuid4().hex()
+    store_data = request.get_json()
     
-@app.get("/store/<string:name>/items")
-def get_store_items(name):
-    for store in stores:
-        if store["name"] == name:
-            return { "items": store["items"] }
-        
-        error_message = { "statusCode": 404, "message": "Store not found"}
-        return error_message, 404
+    store = {**store_data, "id": store_id}
+    stores[store_id] = store
+
+    return store, 201
+
+@app.post("/item")
+def create_item():
+    item_data = request.get_json()
+
+    if item_data["store_id"] not in stores:
+        return { "message": f"Store with store_id: '{item_data["store_id"]}' not found"}, 404
+
+    item_id = uuid.uuid4().hex()
+    item = {**item_data, "id": item_id}
+    items[item_id] = item
+
+    return item, 201
